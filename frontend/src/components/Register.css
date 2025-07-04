@@ -1,0 +1,56 @@
+.register-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f9f9f9;
+}
+
+.register-form {
+    display: flex;
+    flex-direction: column;
+    width: 300px;
+    padding: 24px;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.register-title {
+    text-align: center;
+    font-size: 24px;
+    color: #2196f3;
+    margin-bottom: 24px;
+}
+
+.register-input {
+    padding: 12px;
+    margin-bottom: 16px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+}
+
+.register-button {
+    padding: 12px;
+    background-color: #2196f3;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.register-button:hover {
+    background-color: #1976d2;
+}
+
+.login-link {
+    text-align: center;
+    margin-top: 16px;
+}
+
+.error-text {
+    color: red;
+    text-align: center;
+    margin-bottom: 16px;
+}

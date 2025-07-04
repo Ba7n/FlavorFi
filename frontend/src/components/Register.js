@@ -1,78 +1,81 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import './Register.css';
 
 function Register() {
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    setLoading(true);
 
     try {
       const response = await fetch('http://localhost:5000/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, role: 'customer' }),
+        body: JSON.stringify({ email, password }),
       });
 
-      if (response.ok) {
-        alert('Registration successful! You can now log in.');
-        navigate('/login');
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.msg || 'Registration failed');
+        setLoading(false);
       } else {
-        const data = await response.json();
-        setError(data.msg || 'Registration failed.');
+        setLoading(false);
+        navigate('/login'); // Redirect to login after successful registration
       }
     } catch (err) {
       setError('Network error. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: 'auto' }}>
-      <h2>Register</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Name"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          required
-          style={{ display: 'block', marginBottom: '10px', width: '100%', padding: '8px' }}
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          required
-          style={{ display: 'block', marginBottom: '10px', width: '100%', padding: '8px' }}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          required
-          style={{ display: 'block', marginBottom: '10px', width: '100%', padding: '8px' }}
-        />
+    <div className="register-container">
+      <form onSubmit={handleSubmit} className="register-form">
+        <h2 className="register-title">Register</h2>
 
-        {error && <p style={{ color: 'red' }}>{error}</p>}
+        {error && <p className="error-text">{error}</p>}
 
-        <button type="submit" disabled={loading} style={{ padding: '10px 20px' }}>
+        <div>
+          <input
+            type="email"
+            className="register-input"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+
+        <div>
+          <input
+            type="password"
+            className="register-input"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+
+        <button type="submit" className="register-button" disabled={loading}>
           {loading ? 'Registering...' : 'Register'}
         </button>
+
+        <p className="login-link">
+          Already have an account? <a href="/login">Login here</a>
+        </p>
       </form>
     </div>
   );
 }
 
 export default Register;
+

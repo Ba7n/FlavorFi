@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import './Login.css';
+
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -37,35 +39,44 @@ function Login() {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ maxWidth: '400px', margin: 'auto' }}>
-      <h2>Login</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+  <div className="login-container">
+    <form onSubmit={handleSubmit} className="login-form">
+      <h2 className="login-title">Login</h2>
+
+      {error && <p className="error-text">{error}</p>}
 
       <div>
-        <label>Email:</label><br />
         <input
           type="email"
+          className="login-input"
+          placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
       </div>
 
-      <div style={{ marginTop: '10px' }}>
-        <label>Password:</label><br />
+      <div>
         <input
           type="password"
+          className="login-input"
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
         />
       </div>
 
-      <button type="submit" style={{ marginTop: '20px' }} disabled={loading}>
+      <button type="submit" className="login-button" disabled={loading}>
         {loading ? 'Logging in...' : 'Login'}
       </button>
+
+      <p className="register-link">
+        New User? <a href="/register">Register here</a>
+      </p>
     </form>
-  );
+  </div>
+);
 }
 
 export default Login;
