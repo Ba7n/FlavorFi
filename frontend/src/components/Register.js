@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import './Register.css';
 
 function Register() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('customer');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -18,7 +20,7 @@ function Register() {
       const response = await fetch('http://localhost:5000/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ name, email, password, role }),
       });
 
       const data = await response.json();
@@ -28,7 +30,7 @@ function Register() {
         setLoading(false);
       } else {
         setLoading(false);
-        navigate('/login'); // Redirect to login after successful registration
+        navigate('/login');
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -43,27 +45,41 @@ function Register() {
 
         {error && <p className="error-text">{error}</p>}
 
-        <div>
-          <input
-            type="email"
-            className="register-input"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
+        <input
+          type="text"
+          className="register-input"
+          placeholder="Full Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
 
-        <div>
-          <input
-            type="password"
-            className="register-input"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
+        <input
+          type="email"
+          className="register-input"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+
+        <input
+          type="password"
+          className="register-input"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+
+        <select
+          className="register-input"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+        >
+          <option value="customer">Customer</option>
+          <option value="owner">Owner</option>
+        </select>
 
         <button type="submit" className="register-button" disabled={loading}>
           {loading ? 'Registering...' : 'Register'}
@@ -78,4 +94,3 @@ function Register() {
 }
 
 export default Register;
-

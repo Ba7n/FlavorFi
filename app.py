@@ -12,7 +12,7 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -108,19 +108,31 @@ def login():
     if not user or not check_password_hash(user.password, password):
         return jsonify({'msg': 'Bad email or password'}), 401
 
-    access_token = create_access_token(identity=user.user_id)
+    # ✅ FIX HERE
+    access_token = create_access_token(identity=str(user.user_id))
+
     return jsonify(access_token=access_token), 200
 
 @app.route('/profile', methods=['GET'])
 @jwt_required()
 def profile():
-    current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
+    identity = get_jwt_identity()
+
+    try:
+        user_id = int(identity)
+    except ValueError:
+        return jsonify({'msg': 'Invalid token identity'}), 400
+
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'msg': 'User not found'}), 404
+
     return jsonify({
         'name': user.name,
         'email': user.email,
         'role': user.role
-    })
+    }), 200
+
 
 @app.route('/restaurants', methods=['POST'])
 @jwt_required()
@@ -416,6 +428,3 @@ def not_found(e):
 def server_error(e):
     return jsonify({'msg': 'Internal server error'}), 500
 
-
-if __name__ == '__main__':
-    app.run()  # By default debug=False unless overridden by env var
