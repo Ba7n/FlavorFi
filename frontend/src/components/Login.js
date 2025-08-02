@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import './Login.css';
-
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -9,6 +9,15 @@ function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const { user, loading: authLoading, login } = useAuth();
+
+  // Redirect logged-in users away from login page
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/profile');
+    }
+  }, [user, authLoading, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,57 +35,74 @@ function Login() {
 
       if (!response.ok) {
         setError(data.msg || 'Login failed');
-        setLoading(false);
       } else {
-        localStorage.setItem('access_token', data.access_token);
-        setLoading(false);
-        navigate('/profile'); // Redirect to profile after successful login
+        login(data.user, data.token); // context updates state & localStorage
+        navigate('/profile');
       }
     } catch (err) {
       setError('Network error. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
 
+  const isFormValid = email.trim() !== '' && password.trim() !== '';
+
+  const handleEmailChange = (e) => {
+    setEmail(e.target.value);
+    if (error) setError('');
+  };
+
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value);
+    if (error) setError('');
+  };
+
   return (
-  <div className="login-container">
-    <form onSubmit={handleSubmit} className="login-form">
-      <h2 className="login-title">Login</h2>
+    <div className="login-container">
+      <form onSubmit={handleSubmit} className="login-form" noValidate>
+        <h2 className="login-title">Login</h2>
 
-      {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text">{error}</p>}
 
-      <div>
-        <input
-          type="email"
-          className="login-input"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-      </div>
+        <div>
+          <input
+            type="email"
+            className="login-input"
+            placeholder="Email"
+            value={email}
+            onChange={handleEmailChange}
+            required
+            autoComplete="email"
+          />
+        </div>
 
-      <div>
-        <input
-          type="password"
-          className="login-input"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-      </div>
+        <div>
+          <input
+            type="password"
+            className="login-input"
+            placeholder="Password"
+            value={password}
+            onChange={handlePasswordChange}
+            required
+            autoComplete="current-password"
+          />
+        </div>
 
-      <button type="submit" className="login-button" disabled={loading}>
-        {loading ? 'Logging in...' : 'Login'}
-      </button>
+        <button
+          type="submit"
+          className="login-button"
+          disabled={loading || !isFormValid}
+        >
+          {loading ? 'Logging in...' : 'Login'}
+        </button>
 
-      <p className="register-link">
-        New User? <a href="/register">Register here</a>
-      </p>
-    </form>
-  </div>
-);
+        <p className="register-link">
+          New User? <Link to="/register">Register here</Link>
+        </p>
+      </form>
+    </div>
+  );
 }
 
 export default Login;

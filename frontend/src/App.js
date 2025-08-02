@@ -6,6 +6,7 @@ import Home from './components/Home';
 import Login from './components/Login';
 import Register from './components/Register';
 import Profile from './components/Profile';
+import CartPage from './components/CartPage'; // ✅ FIXED
 import ProtectedRoute from './components/ProtectedRoute';
 
 import { useAuth } from './contexts/AuthContext';
@@ -21,13 +22,19 @@ function App() {
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/profile" />} />
         <Route path="/register" element={!user ? <Register /> : <Navigate to="/profile" />} />
         
-        {/* Protected Profile Route */}
+        {/* Protected Routes */}
         <Route 
           path="/profile" 
           element={
             <ProtectedRoute>
               <Profile />
             </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/cart" 
+          element={            
+              <CartPage />
           } 
         />
         

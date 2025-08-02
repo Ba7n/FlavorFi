@@ -111,7 +111,16 @@ def login():
     # ✅ FIX HERE
     access_token = create_access_token(identity=str(user.user_id))
 
-    return jsonify(access_token=access_token), 200
+    return jsonify({
+        'user': {
+            'user_id': user.user_id,
+            'name': user.name,
+            'email': user.email,
+            'role': user.role
+        },
+        'token': access_token
+    }), 200
+
 
 @app.route('/profile', methods=['GET'])
 @jwt_required()
@@ -259,6 +268,16 @@ def list_menu_items(restaurant_id):
         'address': restaurant.address,
         'menus': results
     }), 200
+
+@app.route('/restaurants', methods=['GET'])
+def list_restaurants():
+    restaurants = Restaurant.query.all()
+    results = [{
+        'restaurant_id': r.restaurant_id,
+        'name': r.name,
+        'address': r.address
+    } for r in restaurants]
+    return jsonify(results), 200
 
 @app.route('/orders', methods=['POST'])
 @jwt_required()

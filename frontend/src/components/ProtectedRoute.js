@@ -1,14 +1,17 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function ProtectedRoute({ children }) {
-  const token = localStorage.getItem('access_token');
+  const { user, loading } = useAuth();
 
-  if (!token) {
-    // If not logged in, redirect to login page
+  if (loading) {
+    return <p>Loading...</p>; // Or your spinner/loading component
+  }
+
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // If logged in, render the requested page
   return children;
 }
