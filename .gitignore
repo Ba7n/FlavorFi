@@ -1,0 +1,15 @@
+# Secrets
+.env
+.flaskenv
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node/React
+frontend/node_modules/
+frontend/build/
+frontend/dist/
