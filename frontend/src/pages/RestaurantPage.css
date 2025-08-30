@@ -1,0 +1,90 @@
+/* src/pages/RestaurantPage.css */
+
+.restaurant-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.restaurant-title {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.restaurant-address {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.restaurant-menu-section h3 {
+  margin-bottom: 15px;
+  font-size: 1.5rem;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 5px;
+}
+
+/* Vertical menu list */
+.restaurant-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.restaurant-menu-card {
+  display: flex;
+  align-items: flex-start;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
+  gap: 15px;
+}
+
+.restaurant-menu-img {
+  width: 90px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.restaurant-menu-details {
+  flex: 1;
+}
+
+.restaurant-menu-details h4 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.restaurant-menu-desc {
+  margin: 5px 0;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.restaurant-menu-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.restaurant-menu-price {
+  font-weight: bold;
+  color: #333;
+}
+
+.restaurant-add-btn {
+  background-color: #ff5722;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.restaurant-add-btn:hover {
+  background-color: #e64a19;
+}

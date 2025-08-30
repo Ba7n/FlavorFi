@@ -32,7 +32,8 @@
 
 .cart-items li {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
   padding: 0.75rem 0;
   border-bottom: 1px solid #eee;
   font-weight: 500;
@@ -40,6 +41,64 @@
 
 .cart-items li:last-child {
   border-bottom: none;
+}
+
+/* Image styling */
+.cart-item-img {
+  width: 70px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+/* Item details section */
+.item-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.item-details strong {
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.price {
+  color: #555;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+
+.item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.item-actions button {
+  background: #eee;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.item-actions button:hover {
+  background: #ddd;
+}
+
+.remove-btn {
+  background: none;
+  border: none;
+  color: #e74c3c;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.remove-btn:hover {
+  text-decoration: underline;
 }
 
 .cart-container h3 {
@@ -50,40 +109,47 @@
   color: #222;
 }
 
+/* Updated buttons to match Zomato/Swiggy style */
 .clear-cart-btn,
 .place-order-btn {
-  padding: 0.75rem 1.25rem;
-  font-size: 1rem;
-  font-weight: 600;
-  border-radius: 6px;
+  padding: 0.4rem 1.2rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: 20px;
   border: none;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.1);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   margin-right: 1rem;
 }
 
 .clear-cart-btn {
-  background-color: #e74c3c;
+  background-color: #fc5c65;
   color: white;
 }
 
 .clear-cart-btn:hover:not(:disabled) {
-  background-color: #c0392b;
+  background-color: #e04e57;
+  box-shadow: 0 4px 10px rgb(224 78 87 / 0.4);
 }
 
 .place-order-btn {
-  background-color: #27ae60;
+  background-color: #1abc9c;
   color: white;
 }
 
 .place-order-btn:hover:not(:disabled) {
-  background-color: #219150;
+  background-color: #16a085;
+  box-shadow: 0 4px 10px rgb(22 160 133 / 0.4);
 }
 
 .clear-cart-btn:disabled,
 .place-order-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* Responsive tweaks */
@@ -92,11 +158,226 @@
     margin: 1rem;
     padding: 1rem;
   }
-  
+
+  .cart-items li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cart-item-img {
+    width: 100%;
+    height: 150px;
+  }
+
   .clear-cart-btn,
   .place-order-btn {
     width: 100%;
     margin-right: 0;
     margin-bottom: 1rem;
   }
+}
+
+.cart-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  border-top: 1px solid #ddd;
+  background: #fff;
+  position: sticky;
+  bottom: 0;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+  z-index: 10;
+}
+
+.cart-total {
+  display: flex;
+  flex-direction: column;
+  font-weight: 700;
+}
+
+.total-label {
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.total-amount {
+  font-size: 1.3rem;
+  color: #222;
+}
+
+.cart-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 480px) {
+  .cart-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .cart-buttons {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .cart-buttons button {
+    flex: 1;
+  }
+}
+/* Existing styles above ... */
+
+.address-section {
+  margin: 1.5rem 0;
+  text-align: left;
+}
+
+.address-section h3 {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  color: #222;
+}
+
+.address-section textarea {
+  width: 100%;
+  border: 1.8px solid #ddd;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  resize: none;
+  font-size: 1rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+  outline-color: #1abc9c;
+  transition: border-color 0.3s ease;
+}
+
+.address-section textarea:focus {
+  border-color: #16a085;
+}
+
+.promo-section {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.promo-section input {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  border: 1.5px solid #ddd;
+  font-size: 0.95rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+  outline-color: #1abc9c;
+  transition: border-color 0.3s ease;
+}
+
+.promo-section input:focus {
+  border-color: #16a085;
+}
+
+.promo-section button {
+  background-color: #1abc9c;
+  border: none;
+  color: white;
+  padding: 0.45rem 1.25rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.1);
+  transition: background-color 0.3s ease, box-shadow 0.2s ease;
+}
+
+.promo-section button:hover:not(:disabled) {
+  background-color: #16a085;
+  box-shadow: 0 4px 10px rgb(22 160 133 / 0.4);
+}
+
+.promo-section button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.discount-text {
+  color: #27ae60;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+}
+
+/* Responsive tweaks for new sections */
+@media (max-width: 480px) {
+  .address-section textarea {
+    font-size: 0.9rem;
+  }
+  
+  .promo-section {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  
+  .promo-section input,
+  .promo-section button {
+    width: 100%;
+  }
+}
+.bill-summary {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.bill-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.bill-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 6px 0;
+  font-size: 15px;
+}
+
+.bill-row.discount {
+  color: #d9534f;
+  font-weight: 500;
+}
+
+.bill-row.total {
+  font-size: 17px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-top: 10px;
 }

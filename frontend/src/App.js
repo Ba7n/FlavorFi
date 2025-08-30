@@ -6,10 +6,12 @@ import Home from './components/Home';
 import Login from './components/Login';
 import Register from './components/Register';
 import Profile from './components/Profile';
-import CartPage from './components/CartPage'; // ✅ FIXED
+import CartPage from './components/CartPage';
+import RestaurantPage from './pages/RestaurantPage';
 import ProtectedRoute from './components/ProtectedRoute';
-
 import { useAuth } from './contexts/AuthContext';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function App() {
   const { user } = useAuth();
@@ -21,7 +23,10 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/profile" />} />
         <Route path="/register" element={!user ? <Register /> : <Navigate to="/profile" />} />
-        
+
+        {/* Restaurant page */}
+        <Route path="/restaurant/:restaurantId" element={<RestaurantPage />} />
+
         {/* Protected Routes */}
         <Route 
           path="/profile" 
@@ -33,14 +38,21 @@ function App() {
         />
         <Route 
           path="/cart" 
-          element={            
-              <CartPage />
-          } 
+          element={<CartPage />} 
         />
         
         {/* Redirect unknown routes to home */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        closeOnClick
+        pauseOnHover
+        draggable
+        pauseOnFocusLoss={false}
+        theme="light"
+      />
     </Router>
   );
 }

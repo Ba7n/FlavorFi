@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 
 const CartContext = createContext();
 
@@ -6,34 +7,71 @@ const CART_STORAGE_KEY = 'cart_items';
 const RESTAURANT_ID_KEY = 'cart_restaurant_id';
 
 export const CartProvider = ({ children }) => {
-  // Load initial state from localStorage if exists
   const [cartItems, setCartItems] = useState(() => {
     const saved = localStorage.getItem(CART_STORAGE_KEY);
     return saved ? JSON.parse(saved) : [];
   });
 
   const [restaurantId, setRestaurantId] = useState(() => {
-    return localStorage.getItem(RESTAURANT_ID_KEY) || null;
+    const r = localStorage.getItem(RESTAURANT_ID_KEY);
+    return r ? String(r) : null;
   });
 
-  // Whenever cartItems changes, save to localStorage
+  // Save cart to localStorage
   useEffect(() => {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
   }, [cartItems]);
 
-  // Whenever restaurantId changes, save to localStorage
+  // Save restaurant ID
   useEffect(() => {
     if (restaurantId) {
-      localStorage.setItem(RESTAURANT_ID_KEY, restaurantId);
+      localStorage.setItem(RESTAURANT_ID_KEY, String(restaurantId));
     } else {
       localStorage.removeItem(RESTAURANT_ID_KEY);
     }
   }, [restaurantId]);
 
   const addToCart = (menuItem, restaurant_id) => {
-    // Optional: You can add logic here to clear cart if different restaurantId
-    setRestaurantId(restaurant_id);
-    setCartItems(prevItems => {
+    const incomingRestaurantId = restaurant_id != null ? String(restaurant_id) : null;
+
+    if (
+      cartItems.length > 0 &&
+      restaurantId &&
+      incomingRestaurantId &&
+      restaurantId !== incomingRestaurantId
+    ) {
+      toast.warn(
+        <div>
+          ⚠ You can only order from one restaurant at a time.
+          <br />
+          <button
+            style={{
+              marginTop: '8px',
+              padding: '6px 12px',
+              backgroundColor: '#ff4d4f',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+            onClick={() => {
+              clearCart();
+              setRestaurantId(incomingRestaurantId);
+              setCartItems([{ ...menuItem, quantity: 1 }]);
+              toast.dismiss();
+              toast.success(`${menuItem.name} added to cart!`, { position: 'bottom-right' });
+            }}
+          >
+            Clear Cart & Add
+          </button>
+        </div>,
+        { position: 'bottom-right', autoClose: false }
+      );
+      return false; // 🚫 Not added
+    }
+
+    setRestaurantId(incomingRestaurantId);
+    setCartItems((prevItems) => {
       const existingItem = prevItems.find(item => item.menu_id === menuItem.menu_id);
       if (existingItem) {
         return prevItems.map(item =>
@@ -41,10 +79,15 @@ export const CartProvider = ({ children }) => {
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
-      } else {
-        return [...prevItems, { ...menuItem, quantity: 1 }];
       }
+      return [...prevItems, { ...menuItem, quantity: 1 }];
     });
+
+    return true; // ✅ Successfully added
+  };
+
+  const removeFromCart = (menu_id) => {
+    setCartItems(prevItems => prevItems.filter(item => item.menu_id !== menu_id));
   };
 
   const clearCart = () => {
@@ -53,7 +96,16 @@ export const CartProvider = ({ children }) => {
   };
 
   return (
-    <CartContext.Provider value={{ cartItems, addToCart, clearCart, restaurantId }}>
+    <CartContext.Provider
+      value={{
+        cartItems,
+        restaurantId,
+        addToCart,
+        removeFromCart,
+        clearCart,
+        setCartItems, // 🔹 Exposed for quantity updates
+      }}
+    >
       {children}
     </CartContext.Provider>
   );

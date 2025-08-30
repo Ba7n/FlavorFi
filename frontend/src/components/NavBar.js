@@ -1,18 +1,26 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './NavBar.css';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'react-toastify';
 
 export default function NavBar() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, token, loading } = useAuth(); // ✅ add loading
   const { cartItems } = useCart();
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate('/login');
   };
+
+  // 🔔 Show toast only after loading is done
+  useEffect(() => {
+    if (!loading && !user && !token) {
+      toast.info("Your session has expired. Please log in again.");
+    }
+  }, [user, token, loading]);
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -33,6 +41,7 @@ export default function NavBar() {
             <Link to="/register">Register</Link>
           </>
         )}
+        
         {/* Always show Cart link */}
         <Link to="/cart" className="cart-link">
           🛒 Cart {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}

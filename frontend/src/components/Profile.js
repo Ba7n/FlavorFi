@@ -1,25 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext'; // <-- import your AuthContext hook
+import { useAuth } from '../contexts/AuthContext';
 import './Profile.css';
 
 function Profile() {
   const { user, token, loading: authLoading, logout } = useAuth();
   const [profile, setProfile] = useState(null);
-  const [error, setError] = useState('');
   const [profileLoading, setProfileLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (authLoading) return; // wait for auth state
+    if (authLoading) return; // wait until auth is resolved
 
     if (!user || !token) {
-      // No logged-in user or token, redirect to login
       navigate('/login');
       return;
     }
 
-    let isMounted = true; // to prevent state update after unmount
+    let isMounted = true;
 
     const fetchProfile = async () => {
       try {
@@ -27,19 +25,25 @@ function Profile() {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`, // <-- use token from context
+            Authorization: `Bearer ${token}`,
           },
         });
 
+        if (res.status === 401) {
+          // Token expired or invalid → force logout and redirect
+          logout();
+          navigate('/login');
+          return;
+        }
+
         if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.msg || 'Failed to fetch profile');
+          throw new Error('Failed to fetch profile');
         }
 
         const data = await res.json();
         if (isMounted) setProfile(data);
       } catch (err) {
-        if (isMounted) setError(err.message);
+        console.error("Profile fetch error:", err);
       } finally {
         if (isMounted) setProfileLoading(false);
       }
@@ -50,16 +54,10 @@ function Profile() {
     return () => {
       isMounted = false;
     };
-  }, [authLoading, user, token, navigate]);
+  }, [authLoading, user, token, navigate, logout]);
 
   const handleLogout = () => {
-    logout(); // use logout from context to clear token and user
-    navigate('/login');
-  };
-
-  const handleGoToLogin = () => {
-    setError('');
-    setProfileLoading(true);
+    logout();
     navigate('/login');
   };
 
@@ -67,17 +65,6 @@ function Profile() {
     return (
       <div className="profile-container">
         <p className="profile-loading">Loading profile...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="profile-container">
-        <p className="profile-error">{error}</p>
-        <button className="profile-button" onClick={handleGoToLogin}>
-          Go to Login
-        </button>
       </div>
     );
   }

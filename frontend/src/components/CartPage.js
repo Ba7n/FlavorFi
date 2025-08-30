@@ -2,27 +2,80 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'react-toastify';
 import './CartPage.css';
 
 const CartPage = () => {
-  const { cartItems, restaurantId, clearCart } = useCart();
+  const { cartItems, restaurantId, clearCart, setCartItems } = useCart();
   const { user, token } = useAuth();
   const navigate = useNavigate();
 
   const [placingOrder, setPlacingOrder] = React.useState(false);
+  const [address, setAddress] = React.useState('');
+  const [promoCode, setPromoCode] = React.useState('');
+  const [applyingPromo, setApplyingPromo] = React.useState(false);
+  const [discount, setDiscount] = React.useState(0);
 
-  const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  // 🔹 Bill summary calculations
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const deliveryFee = subtotal > 300 ? 0 : 40; // free delivery if subtotal > 300
+  const finalAmount = subtotal - discount + deliveryFee;
+
+  const increaseQty = (menu_id) => {
+    setCartItems((prev) =>
+      prev.map((item) =>
+        item.menu_id === menu_id ? { ...item, quantity: item.quantity + 1 } : item
+      )
+    );
+  };
+
+  const decreaseQty = (menu_id) => {
+    setCartItems((prev) =>
+      prev
+        .map((item) =>
+          item.menu_id === menu_id
+            ? { ...item, quantity: Math.max(1, item.quantity - 1) }
+            : item
+        )
+        .filter((item) => item.quantity > 0)
+    );
+  };
+
+  const removeItem = (menu_id) => {
+    setCartItems((prev) => prev.filter((item) => item.menu_id !== menu_id));
+    toast.info("Item removed from cart.");
+  };
+
+  const handleApplyPromo = () => {
+    if (!promoCode.trim()) return;
+    setApplyingPromo(true);
+    setTimeout(() => {
+      if (promoCode.toLowerCase() === 'swiggy10' || promoCode.toLowerCase() === 'zomato10') {
+        setDiscount(subtotal * 0.1);
+        toast.success('Promo code applied! 10% off');
+      } else {
+        setDiscount(0);
+        toast.error('Invalid promo code');
+      }
+      setApplyingPromo(false);
+    }, 1000);
+  };
 
   const placeOrder = async () => {
     if (!user) {
-      alert('Please login to place an order.');
+      toast.error('Please log in to place an order.');
       navigate('/login');
       return;
     }
 
     if (!token) {
-      alert('Authentication token missing. Please login again.');
+      toast.error('Authentication token missing. Please login again.');
       navigate('/login');
+      return;
+    }
+
+    if (!address.trim()) {
+      toast.error('Please enter a delivery address.');
       return;
     }
 
@@ -40,29 +93,36 @@ const CartPage = () => {
             menu_id: item.menu_id,
             quantity: item.quantity,
           })),
+          delivery_address: address,
+          promo_code: promoCode.trim(),
         }),
       });
 
       if (response.ok) {
-        alert('✅ Order placed successfully!');
+        toast.success('Order placed successfully!');
         clearCart();
         navigate('/');
       } else {
-        const error = await response.json();
-        alert(`❌ Order failed: ${error.message || 'Something went wrong'}`);
+        let errorMsg = 'Something went wrong';
+        try {
+          const error = await response.json();
+          errorMsg = error.msg || errorMsg;
+        } catch {
+          errorMsg = 'Server error, please try again later';
+        }
+        toast.error(`❌ Order failed: ${errorMsg}`);
       }
     } catch (err) {
       console.error('Order error:', err);
-      alert('❌ Server error while placing order.');
+      toast.error('❌ Server error while placing order.');
     } finally {
       setPlacingOrder(false);
     }
   };
 
   const handleClearCart = () => {
-    if (window.confirm('Are you sure you want to clear the cart?')) {
-      clearCart();
-    }
+    toast.info('🧹 Cart cleared.');
+    clearCart();
   };
 
   return (
@@ -72,25 +132,114 @@ const CartPage = () => {
       {cartItems.length === 0 ? (
         <p>Your cart is empty. Add some items from the menu!</p>
       ) : (
-        <div>
+        <>
           <ul className="cart-items">
             {cartItems.map((item) => (
-              <li key={item.menu_id}>
-                {item.name} — ₹{item.price} × {item.quantity}
+              <li key={item.menu_id} className="cart-item">
+                <img
+                  src={`/images/${item.image_name || 'placeholder.jpg'}`}
+                  alt={item.name}
+                  className="cart-item-img"
+                />
+                <div className="item-details">
+                  <strong>{item.name}</strong>
+                  <span className="price">₹{item.price.toFixed(2)}</span>
+                  <div className="item-actions">
+                    <button onClick={() => decreaseQty(item.menu_id)}>-</button>
+                    <span>{item.quantity}</span>
+                    <button onClick={() => increaseQty(item.menu_id)}>+</button>
+                    <button
+                      className="remove-btn"
+                      onClick={() => removeItem(item.menu_id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
               </li>
             ))}
           </ul>
 
-          <h3>Total: ₹{totalAmount.toFixed(2)}</h3>
+          {/* Delivery Address */}
+          <section className="address-section">
+            <h3>Delivery Address</h3>
+            <textarea
+              rows={3}
+              placeholder="Enter your delivery address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
+          </section>
 
-          <button className="clear-cart-btn" onClick={handleClearCart} disabled={placingOrder}>
-            Clear Cart
-          </button>
+          {/* Promo Code */}
+          <section className="promo-section">
+            <input
+              type="text"
+              placeholder="Enter promo code"
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value)}
+              disabled={applyingPromo}
+            />
+            <button onClick={handleApplyPromo} disabled={applyingPromo}>
+              {applyingPromo ? 'Applying...' : 'Apply'}
+            </button>
+          </section>
 
-          <button className="place-order-btn" onClick={placeOrder} disabled={placingOrder}>
-            {placingOrder ? 'Placing Order...' : '🛒 Place Order'}
-          </button>
-        </div>
+          {/* ✅ Bill Summary */}
+          <section className="bill-summary">
+            <h3 className="bill-title">Bill Summary</h3>
+            <div className="bill-row">
+              <span>Subtotal</span>
+              <span>₹{subtotal.toFixed(2)}</span>
+            </div>
+
+            {discount > 0 && (
+              <div className="bill-row discount">
+                <span>Discount</span>
+                <span>-₹{discount.toFixed(2)}</span>
+              </div>
+            )}
+
+            <div className="bill-row">
+              <span>Delivery Fee</span>
+              <span>{deliveryFee === 0 ? "Free" : `₹${deliveryFee.toFixed(2)}`}</span>
+            </div>
+
+            <hr />
+
+            <div className="bill-row total">
+              <strong>Total Payable</strong>
+              <strong>₹{finalAmount.toFixed(2)}</strong>
+            </div>
+          </section>
+
+          {/* Cart footer */}
+          <div className="cart-footer">
+            <div className="cart-buttons">
+              <button
+                className="clear-cart-btn"
+                onClick={handleClearCart}
+                disabled={placingOrder}
+              >
+                🗑 Clear
+              </button>
+
+              <button
+                className="place-order-btn"
+                onClick={placeOrder}
+                disabled={placingOrder}
+              >
+                {placingOrder ? (
+                  <>
+                    <span className="spinner"></span> Placing...
+                  </>
+                ) : (
+                  <>🛒 Place Order</>
+                )}
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

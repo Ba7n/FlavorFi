@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import './Home.css';
 import { useCart } from '../contexts/CartContext';
+import { toast } from 'react-toastify'; 
 
 const HomePage = () => {
   const [user, setUser] = useState(null);
   const [menus, setMenus] = useState([]);
-  const [restaurantId, setRestaurantId] = useState(null);
-
+  const navigate = useNavigate();
   const { addToCart } = useCart();
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
-    let firstRestaurantId;  // Declare here so it's accessible in all .then blocks
 
     if (token) {
       axios
@@ -24,24 +24,22 @@ const HomePage = () => {
     }
 
     axios.get('http://localhost:5000/restaurants')
-      .then(res => {
-        firstRestaurantId = res.data[0]?.restaurant_id;
-        if (firstRestaurantId) {
-          setRestaurantId(firstRestaurantId);
-          return axios.get(`http://localhost:5000/restaurants/${firstRestaurantId}/menus`);
-        }
-      })
-      .then(menuRes => {
-        if (menuRes) {
-          const menusWithRestaurantId = menuRes.data.menus.map(menu => ({
-            ...menu,
-            restaurant_id: firstRestaurantId,
-          }));
+      .then(async (res) => {
+        const restaurants = res.data;
+        const menusData = [];
 
-          setMenus(menusWithRestaurantId);
+        for (const r of restaurants) {
+          const menuRes = await axios.get(`http://localhost:5000/restaurants/${r.restaurant_id}/menus`);
+          menusData.push(...menuRes.data.menus.map(menu => ({
+            ...menu,
+            restaurant_id: r.restaurant_id,
+            restaurant_name: r.name
+          })));
         }
+
+        setMenus(menusData);
       })
-      .catch(err => console.error('Menus error:', err));
+      .catch(err => console.error('Error loading menus:', err));
   }, []);
 
   return (
@@ -59,22 +57,32 @@ const HomePage = () => {
         <h2>Featured Dishes</h2>
         <div className="menu-grid">
           {menus.map((item) => (
-            <div className="menu-card" key={item.menu_id}>
-              <div className="menu-img-placeholder">🍽️</div>
+            <div
+              className="menu-card"
+              key={item.menu_id}
+              onClick={() => navigate(`/restaurant/${item.restaurant_id}`)}
+            >
+              <img 
+                src={`/images/${item.image_name || 'placeholder.jpg'}`} 
+                alt={item.name} 
+                className="menu-img"
+              />
               <h3>{item.name}</h3>
+              <p className="restaurant-name">From {item.restaurant_name}</p>
               <p>{item.description}</p>
               <div className="menu-footer">
                 <span className="price">₹{item.price.toFixed(2)}</span>
                 <button
                   className="add-btn"
-                  onClick={() => {
-                    console.log('Item being added:', item);
-                    console.log('restaurantId from item:', item.restaurant_id);
-                    addToCart(item, restaurantId);
-                    alert(`${item.name} added to cart!`);
+                  onClick={(e) => {
+                    e.stopPropagation(); // prevent navigating when clicking "Add to Cart"
+                    const added = addToCart(item, item.restaurant_id);
+                    if (added) {
+                      toast.success(`${item.name} added to cart!`, { position: 'bottom-right' });
+                    }
                   }}
                 >
-                  Add
+                  Add to Cart
                 </button>
               </div>
             </div>
