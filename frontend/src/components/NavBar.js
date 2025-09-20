@@ -33,6 +33,7 @@ export default function NavBar() {
         {user ? (
           <>
             <Link to="/profile">Profile</Link>
+            <Link to="/my-orders">My Orders</Link> {/* Added MyOrders Link */}
             <button className="logout-btn" onClick={handleLogout}>Logout</button>
           </>
         ) : (

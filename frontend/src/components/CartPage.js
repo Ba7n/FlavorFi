@@ -16,7 +16,13 @@ const CartPage = () => {
   const [applyingPromo, setApplyingPromo] = React.useState(false);
   const [discount, setDiscount] = React.useState(0);
 
-  // 🔹 Bill summary calculations
+  // Reset discount and promo code when cart changes
+  React.useEffect(() => {
+    setDiscount(0);
+    setPromoCode('');
+  }, [cartItems]);
+
+  // Bill summary calculations
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const deliveryFee = subtotal > 300 ? 0 : 40; // free delivery if subtotal > 300
   const finalAmount = subtotal - discount + deliveryFee;
@@ -46,19 +52,31 @@ const CartPage = () => {
     toast.info("Item removed from cart.");
   };
 
-  const handleApplyPromo = () => {
+  const handleApplyPromo = async () => {
     if (!promoCode.trim()) return;
     setApplyingPromo(true);
-    setTimeout(() => {
-      if (promoCode.toLowerCase() === 'swiggy10' || promoCode.toLowerCase() === 'zomato10') {
-        setDiscount(subtotal * 0.1);
-        toast.success('Promo code applied! 10% off');
+    try {
+      const response = await fetch(`http://localhost:5000/promos/${promoCode.trim()}`);
+      const data = await response.json();
+
+      if (response.ok && data.valid) {
+        const discountPercent = Number(data.discount_percent);
+        if (!isNaN(discountPercent) && discountPercent > 0) {
+          setDiscount(subtotal * (discountPercent / 100));
+          toast.success(`Promo code applied! ${discountPercent}% off`);
+        } else {
+          toast.error('Invalid discount percent received.');
+          setDiscount(0);
+        }
       } else {
         setDiscount(0);
         toast.error('Invalid promo code');
       }
+    } catch (error) {
+      toast.error('Error validating promo code');
+    } finally {
       setApplyingPromo(false);
-    }, 1000);
+    }
   };
 
   const placeOrder = async () => {
@@ -76,6 +94,11 @@ const CartPage = () => {
 
     if (!address.trim()) {
       toast.error('Please enter a delivery address.');
+      return;
+    }
+
+    if (promoCode.trim() && discount === 0) {
+      toast.error('Please apply a valid promo code or remove it before placing order.');
       return;
     }
 
@@ -185,7 +208,7 @@ const CartPage = () => {
             </button>
           </section>
 
-          {/* ✅ Bill Summary */}
+          {/* Bill Summary */}
           <section className="bill-summary">
             <h3 className="bill-title">Bill Summary</h3>
             <div className="bill-row">

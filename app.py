@@ -6,6 +6,7 @@ from datetime import timedelta
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 from flask_cors import CORS
+
 import os
 
 load_dotenv()
@@ -45,6 +46,7 @@ class Menu(db.Model):
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.restaurant_id'))
     name = db.Column(db.String(100))
     description = db.Column(db.Text)
+    image_name = db.Column(db.String(100))
     price = db.Column(db.Float)
     available = db.Column(db.Boolean, default=True)
 
@@ -52,8 +54,11 @@ class Order(db.Model):
     order_id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.user_id'))
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.restaurant_id'))
-    status = db.Column(db.String(20), default='received')  # received, preparing, ready, delivered, cancelled
+    status = db.Column(db.String(20), default='received')
     total_price = db.Column(db.Float)
+    delivery_address = db.Column(db.String(255))   # ✅ NEW
+    promo_code = db.Column(db.String(50))          # ✅ NEW
+    discount = db.Column(db.Float, default=0.0)    # ✅ NEW
     order_date = db.Column(db.DateTime, server_default=db.func.now())
 
 class OrderItem(db.Model):
@@ -62,6 +67,11 @@ class OrderItem(db.Model):
     menu_id = db.Column(db.Integer, db.ForeignKey('menu.menu_id'))
     quantity = db.Column(db.Integer)
     price = db.Column(db.Float)
+
+class PromoCode(db.Model):
+    code = db.Column(db.String(50), primary_key=True)
+    discount_percent = db.Column(db.Float, nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
 
 @app.route('/')
 def home():
@@ -109,7 +119,7 @@ def login():
         return jsonify({'msg': 'Bad email or password'}), 401
 
     # ✅ FIX HERE
-    access_token = create_access_token(identity=str(user.user_id))
+    access_token = create_access_token(identity=user.user_id)
 
     return jsonify({
         'user': {
@@ -259,6 +269,7 @@ def list_menu_items(restaurant_id):
         'name': menu.name,
         'description': menu.description,
         'price': menu.price,
+        'image_name': menu.image_name,
         'available': menu.available
     } for menu in menus]
 
@@ -310,14 +321,10 @@ def create_order():
 
         if menu_id is None or quantity is None:
             return jsonify({'msg': 'Each item must have menu_id and quantity'}), 400
-
-        if not menu_id or not quantity:
-            return jsonify({'msg': 'Each item must have menu_id and quantity'}), 400
         if not isinstance(quantity, int) or quantity <= 0:
             return jsonify({'msg': 'Quantity must be a positive integer'}), 400
 
         menu_item = menu_dict.get(menu_id)
-        
         if not menu_item:
             return jsonify({'msg': f'Menu item {menu_id} not found in this restaurant'}), 404
         if not menu_item.available:
@@ -332,18 +339,37 @@ def create_order():
             'price': menu_item.price
         })
 
-    # Create Order
+    # Delivery & Promo
+    delivery_address = data.get('delivery_address')
+    promo_code = data.get('promo_code')
+    if not delivery_address:
+        return jsonify({'msg': 'Delivery address required'}), 400
+
+    discount = 0.0
+
+    if promo_code:
+        promo = PromoCode.query.filter(PromoCode.code.ilike(promo_code), PromoCode.is_active == True).first()
+
+        if promo:
+            discount = total_price * (promo.discount_percent / 100)
+        else:
+            return jsonify({'msg': 'Invalid or inactive promo code'}), 400
+
+
+    # Create order
     new_order = Order(
         user_id=current_user_id,
         restaurant_id=restaurant_id,
-        total_price=total_price,
+        total_price=total_price - discount,
+        delivery_address=delivery_address,
+        promo_code=promo_code,
+        discount=discount,
         status='received'
     )
     db.session.add(new_order)
-    db.session.flush()  # flush to get new_order.order_id
+    db.session.flush()  # get order_id
 
     # Create OrderItems
-    
     for oi in order_items:
         order_item = OrderItem(
             order_id=new_order.order_id,
@@ -353,11 +379,13 @@ def create_order():
         )
         db.session.add(order_item)
     db.session.commit()
-    
+
     return jsonify({
         'msg': 'Order created',
         'order_id': new_order.order_id,
         'total_price': total_price,
+        'discount': discount,
+        'final_price': new_order.total_price,
         'status': new_order.status
     }), 201
 
@@ -365,15 +393,41 @@ def create_order():
 @jwt_required()
 def list_user_orders():
     current_user_id = get_jwt_identity()
+    print(f'Fetching orders for user_id={current_user_id}')
     orders = Order.query.filter_by(user_id=current_user_id).all()
+    print(f'Orders found: {len(orders)}')
 
-    results = [{
-        'order_id': o.order_id,
-        'restaurant_id': o.restaurant_id,
-        'status': o.status,
-        'total_price': o.total_price,
-        'order_date': o.order_date.isoformat()
-    } for o in orders]
+    results = []
+    for o in orders:
+        print(f'Processing order_id={o.order_id}')
+        order_items = OrderItem.query.filter_by(order_id=o.order_id).all()
+        print(f'Items in order: {len(order_items)}')
+
+        items_data = []
+        for item in order_items:
+            menu = Menu.query.get(item.menu_id)
+            menu_name = menu.name if menu else 'Unknown'
+            print(f'OrderItem menu_id={item.menu_id} name={menu_name}')
+            items_data.append({
+                'menu_id': item.menu_id,
+                'menu_name': menu_name,
+                'quantity': item.quantity,
+                'price_per_item': item.price
+            })
+
+        restaurant = Restaurant.query.get(o.restaurant_id)
+        restaurant_name = restaurant.name if restaurant else 'Unknown'
+        print(f'Order restaurant: {restaurant_name}')
+
+        results.append({
+            'order_id': o.order_id,
+            'restaurant_id': o.restaurant_id,
+            'restaurant_name': restaurant_name,
+            'status': o.status,
+            'total_price': o.total_price,
+            'order_date': o.order_date.isoformat(),
+            'items': items_data
+        })
 
     return jsonify(results), 200
 
@@ -446,4 +500,23 @@ def not_found(e):
 @app.errorhandler(500)
 def server_error(e):
     return jsonify({'msg': 'Internal server error'}), 500
+
+@app.route('/promos/<string:code>', methods=['GET'])
+def validate_promo(code):
+    promo = PromoCode.query.filter(
+        PromoCode.code.ilike(code),
+        PromoCode.is_active == True
+    ).first()
+    
+    if not promo:
+        return jsonify({
+            'valid': False,
+            'msg': 'Invalid or inactive promo code'
+        }), 200  # Return 200 even if invalid for smoother frontend handling
+    
+    return jsonify({
+        'valid': True,
+        'code': promo.code.upper(),  # Normalize code display to uppercase
+        'discount_percent': promo.discount_percent
+    }), 200
 
