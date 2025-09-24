@@ -55,11 +55,16 @@ class Order(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.user_id'))
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.restaurant_id'))
     status = db.Column(db.String(20), default='received')
-    total_price = db.Column(db.Float)
-    delivery_address = db.Column(db.String(255))   # ✅ NEW
-    promo_code = db.Column(db.String(50))          # ✅ NEW
-    discount = db.Column(db.Float, default=0.0)    # ✅ NEW
+    
+    subtotal = db.Column(db.Float)                  # NEW: total before discount & delivery
+    discount = db.Column(db.Float, default=0.0)    # you already have this
+    delivery_fee = db.Column(db.Float, default=0.0)  # NEW: delivery fee at order time
+    total_price = db.Column(db.Float)              # final amount after discount + delivery
+    
+    delivery_address = db.Column(db.String(255))
+    promo_code = db.Column(db.String(50))
     order_date = db.Column(db.DateTime, server_default=db.func.now())
+
 
 class OrderItem(db.Model):
     order_item_id = db.Column(db.Integer, primary_key=True)
@@ -119,7 +124,7 @@ def login():
         return jsonify({'msg': 'Bad email or password'}), 401
 
     # ✅ FIX HERE
-    access_token = create_access_token(identity=user.user_id)
+    access_token = create_access_token(identity=str(user.user_id))  # 👈 string-safe
 
     return jsonify({
         'user': {
@@ -142,7 +147,7 @@ def profile():
     except ValueError:
         return jsonify({'msg': 'Invalid token identity'}), 400
 
-    user = User.query.get(user_id)
+    user = User.query.get(int(user_id))
     if not user:
         return jsonify({'msg': 'User not found'}), 404
 
@@ -293,12 +298,11 @@ def list_restaurants():
 @app.route('/orders', methods=['POST'])
 @jwt_required()
 def create_order():
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     data = request.get_json()
 
     restaurant_id = data.get('restaurant_id')
     items = data.get('items')
-
     if not restaurant_id or not items:
         return jsonify({'msg': 'restaurant_id and items are required'}), 400
     if not isinstance(items, list) or len(items) == 0:
@@ -308,62 +312,72 @@ def create_order():
     if not restaurant:
         return jsonify({'msg': 'Restaurant not found'}), 404
 
-    total_price = 0.0
+    subtotal = 0.0
     order_items = []
 
+    # Fetch menu items in one query
     menu_ids = [item['menu_id'] for item in items]
     menus = Menu.query.filter(Menu.menu_id.in_(menu_ids), Menu.restaurant_id == restaurant_id).all()
     menu_dict = {menu.menu_id: menu for menu in menus}
 
+    # Validate items and calculate subtotal
     for item in items:
         menu_id = item.get('menu_id')
         quantity = item.get('quantity')
-
         if menu_id is None or quantity is None:
-            return jsonify({'msg': 'Each item must have menu_id and quantity'}), 400
+            return jsonify({'msg': 'Each item needs menu_id and quantity'}), 400
         if not isinstance(quantity, int) or quantity <= 0:
             return jsonify({'msg': 'Quantity must be a positive integer'}), 400
 
         menu_item = menu_dict.get(menu_id)
-        if not menu_item:
-            return jsonify({'msg': f'Menu item {menu_id} not found in this restaurant'}), 404
-        if not menu_item.available:
-            return jsonify({'msg': f'Menu item {menu_item.name} is not available'}), 400
+        if not menu_item or not menu_item.available:
+            return jsonify({'msg': f'Menu item {menu_id} not available'}), 400
 
-        item_price = menu_item.price * quantity
-        total_price += item_price
-
+        subtotal += menu_item.price * quantity
         order_items.append({
             'menu_id': menu_id,
             'quantity': quantity,
             'price': menu_item.price
         })
 
-    # Delivery & Promo
+    # Delivery address
     delivery_address = data.get('delivery_address')
-    promo_code = data.get('promo_code')
     if not delivery_address:
         return jsonify({'msg': 'Delivery address required'}), 400
 
+    # Promo code & discount
+    promo_code = data.get('promo_code')
     discount = 0.0
-
     if promo_code:
-        promo = PromoCode.query.filter(PromoCode.code.ilike(promo_code), PromoCode.is_active == True).first()
-
+        promo = PromoCode.query.filter(
+            PromoCode.code.ilike(promo_code),
+            PromoCode.is_active == True
+        ).first()
         if promo:
-            discount = total_price * (promo.discount_percent / 100)
+            discount = subtotal * (promo.discount_percent / 100)
         else:
             return jsonify({'msg': 'Invalid or inactive promo code'}), 400
 
+    # Calculate delivery fee
+    subtotal = round(subtotal, 2)
+    discount = round(discount, 2)
+    discounted_subtotal = round(subtotal - discount, 2)
+    delivery_fee = 0 if discounted_subtotal > 300 else 40
+    delivery_fee = round(delivery_fee, 2)
 
-    # Create order
+    # Final total
+    total_price = round(discounted_subtotal + delivery_fee, 2)
+
+    # Create Order
     new_order = Order(
         user_id=current_user_id,
         restaurant_id=restaurant_id,
-        total_price=total_price - discount,
+        subtotal=subtotal,
+        discount=discount,
+        delivery_fee=delivery_fee,
+        total_price=total_price,
         delivery_address=delivery_address,
         promo_code=promo_code,
-        discount=discount,
         status='received'
     )
     db.session.add(new_order)
@@ -371,21 +385,22 @@ def create_order():
 
     # Create OrderItems
     for oi in order_items:
-        order_item = OrderItem(
+        db.session.add(OrderItem(
             order_id=new_order.order_id,
             menu_id=oi['menu_id'],
             quantity=oi['quantity'],
             price=oi['price']
-        )
-        db.session.add(order_item)
+        ))
+
     db.session.commit()
 
     return jsonify({
         'msg': 'Order created',
         'order_id': new_order.order_id,
-        'total_price': total_price,
+        'subtotal': subtotal,
         'discount': discount,
-        'final_price': new_order.total_price,
+        'delivery_fee': delivery_fee,
+        'total_price': total_price,
         'status': new_order.status
     }), 201
 
@@ -410,7 +425,7 @@ def list_user_orders():
             print(f'OrderItem menu_id={item.menu_id} name={menu_name}')
             items_data.append({
                 'menu_id': item.menu_id,
-                'menu_name': menu_name,
+                'name': menu_name,
                 'quantity': item.quantity,
                 'price_per_item': item.price
             })
@@ -450,7 +465,7 @@ def order_details(order_id):
         menu = Menu.query.get(item.menu_id)
         items_data.append({
             'menu_id': item.menu_id,
-            'menu_name': menu.name if menu else None,
+            'name': menu.name if menu else None,
             'quantity': item.quantity,
             'price_per_item': item.price
         })
@@ -520,3 +535,54 @@ def validate_promo(code):
         'discount_percent': promo.discount_percent
     }), 200
 
+@app.route('/orders/quote', methods=['POST'])
+@jwt_required(optional=True)
+def quote_order():
+    data = request.get_json()
+    restaurant_id = data.get('restaurant_id')
+    items = data.get('items', [])
+    promo_code = data.get('promo_code', '').strip()
+
+    if not restaurant_id or not items:
+        return jsonify({'msg': 'restaurant_id and items are required'}), 400
+
+    restaurant = Restaurant.query.get(restaurant_id)
+    if not restaurant:
+        return jsonify({'msg': 'Restaurant not found'}), 404
+
+    # Fetch menu items
+    menu_ids = [item['menu_id'] for item in items]
+    menus = Menu.query.filter(Menu.menu_id.in_(menu_ids), Menu.restaurant_id==restaurant_id).all()
+    menu_dict = {menu.menu_id: menu for menu in menus}
+
+    subtotal = 0
+    for item in items:
+        menu_id = item.get('menu_id')
+        quantity = item.get('quantity', 0)
+        menu_item = menu_dict.get(menu_id)
+        if not menu_item or not menu_item.available:
+            return jsonify({'msg': f'Menu item {menu_id} not available'}), 400
+        subtotal += menu_item.price * quantity
+
+    subtotal = round(subtotal, 2)
+
+    # Apply promo code if valid
+    discount = 0
+    if promo_code:
+        promo = PromoCode.query.filter(
+            PromoCode.code.ilike(promo_code),
+            PromoCode.is_active==True
+        ).first()
+        if promo:
+            discount = round(subtotal * promo.discount_percent / 100, 2)
+
+    discounted_subtotal = subtotal - discount
+    delivery_fee = 0 if discounted_subtotal > 300 else 40
+    total_price = round(discounted_subtotal + delivery_fee, 2)
+
+    return jsonify({
+        'subtotal': subtotal,
+        'discount': discount,
+        'delivery_fee': delivery_fee,
+        'total_price': total_price
+    }), 200

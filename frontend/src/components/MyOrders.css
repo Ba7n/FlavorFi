@@ -1,0 +1,76 @@
+.my-orders {
+  max-width: 900px;
+  margin: 2rem auto;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  padding: 0 1rem;
+}
+
+.my-orders h2 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.orders-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.order-card {
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  overflow: hidden;
+  transition: transform 0.2s;
+}
+
+.order-card:hover {
+  transform: scale(1.01);
+}
+
+.order-summary {
+  display: flex;
+  justify-content: space-between;
+  padding: 1rem;
+  cursor: pointer;
+  align-items: center;
+}
+
+.order-summary div p {
+  margin: 0.2rem 0;
+}
+
+.order-summary-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.expand-btn {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 0.2rem;
+  color: #007bff;
+}
+
+.order-details {
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-top: 1px solid #eee;
+}
+
+.order-details ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.order-details ul li {
+  padding: 0.4rem 0;
+  border-bottom: 1px dashed #ddd;
+  display: flex;
+  justify-content: space-between;
+  color: #444;
+}

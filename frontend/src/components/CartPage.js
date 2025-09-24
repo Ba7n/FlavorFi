@@ -5,6 +5,22 @@ import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import './CartPage.css';
 
+// Helper function for cart calculations
+const calculateCartTotals = (cartItems, promoPercent = 0) => {
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const discount = subtotal * (promoPercent / 100);
+  const discountedSubtotal = subtotal - discount;
+  const deliveryFee = discountedSubtotal > 300 ? 0 : 40;
+  const total = discountedSubtotal + deliveryFee;
+
+  return {
+    subtotal: parseFloat(subtotal.toFixed(2)),
+    discount: parseFloat(discount.toFixed(2)),
+    deliveryFee: parseFloat(deliveryFee.toFixed(2)),
+    total: parseFloat(total.toFixed(2)),
+  };
+};
+
 const CartPage = () => {
   const { cartItems, restaurantId, clearCart, setCartItems } = useCart();
   const { user, token } = useAuth();
@@ -14,41 +30,32 @@ const CartPage = () => {
   const [address, setAddress] = React.useState('');
   const [promoCode, setPromoCode] = React.useState('');
   const [applyingPromo, setApplyingPromo] = React.useState(false);
-  const [discount, setDiscount] = React.useState(0);
+  const [promoPercent, setPromoPercent] = React.useState(0);
 
-  // Reset discount and promo code when cart changes
+  // Reset promo when cart changes
   React.useEffect(() => {
-    setDiscount(0);
+    setPromoPercent(0);
     setPromoCode('');
   }, [cartItems]);
 
-  // Bill summary calculations
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = subtotal > 300 ? 0 : 40; // free delivery if subtotal > 300
-  const finalAmount = subtotal - discount + deliveryFee;
+  const { subtotal, discount, deliveryFee, total } = calculateCartTotals(cartItems, promoPercent);
 
   const increaseQty = (menu_id) => {
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item.menu_id === menu_id ? { ...item, quantity: item.quantity + 1 } : item
-      )
+    setCartItems(prev =>
+      prev.map(item => item.menu_id === menu_id ? { ...item, quantity: item.quantity + 1 } : item)
     );
   };
 
   const decreaseQty = (menu_id) => {
-    setCartItems((prev) =>
+    setCartItems(prev =>
       prev
-        .map((item) =>
-          item.menu_id === menu_id
-            ? { ...item, quantity: Math.max(1, item.quantity - 1) }
-            : item
-        )
-        .filter((item) => item.quantity > 0)
+        .map(item => item.menu_id === menu_id ? { ...item, quantity: Math.max(1, item.quantity - 1) } : item)
+        .filter(item => item.quantity > 0)
     );
   };
 
   const removeItem = (menu_id) => {
-    setCartItems((prev) => prev.filter((item) => item.menu_id !== menu_id));
+    setCartItems(prev => prev.filter(item => item.menu_id !== menu_id));
     toast.info("Item removed from cart.");
   };
 
@@ -60,16 +67,16 @@ const CartPage = () => {
       const data = await response.json();
 
       if (response.ok && data.valid) {
-        const discountPercent = Number(data.discount_percent);
-        if (!isNaN(discountPercent) && discountPercent > 0) {
-          setDiscount(subtotal * (discountPercent / 100));
-          toast.success(`Promo code applied! ${discountPercent}% off`);
+        const percent = Number(data.discount_percent);
+        if (!isNaN(percent) && percent > 0) {
+          setPromoPercent(percent);
+          toast.success(`Promo code applied! ${percent}% off`);
         } else {
+          setPromoPercent(0);
           toast.error('Invalid discount percent received.');
-          setDiscount(0);
         }
       } else {
-        setDiscount(0);
+        setPromoPercent(0);
         toast.error('Invalid promo code');
       }
     } catch (error) {
@@ -97,7 +104,7 @@ const CartPage = () => {
       return;
     }
 
-    if (promoCode.trim() && discount === 0) {
+    if (promoCode.trim() && promoPercent === 0) {
       toast.error('Please apply a valid promo code or remove it before placing order.');
       return;
     }
@@ -112,7 +119,7 @@ const CartPage = () => {
         },
         body: JSON.stringify({
           restaurant_id: restaurantId,
-          items: cartItems.map((item) => ({
+          items: cartItems.map(item => ({
             menu_id: item.menu_id,
             quantity: item.quantity,
           })),
@@ -157,7 +164,7 @@ const CartPage = () => {
       ) : (
         <>
           <ul className="cart-items">
-            {cartItems.map((item) => (
+            {cartItems.map(item => (
               <li key={item.menu_id} className="cart-item">
                 <img
                   src={`/images/${item.image_name || 'placeholder.jpg'}`}
@@ -171,12 +178,7 @@ const CartPage = () => {
                     <button onClick={() => decreaseQty(item.menu_id)}>-</button>
                     <span>{item.quantity}</span>
                     <button onClick={() => increaseQty(item.menu_id)}>+</button>
-                    <button
-                      className="remove-btn"
-                      onClick={() => removeItem(item.menu_id)}
-                    >
-                      Remove
-                    </button>
+                    <button className="remove-btn" onClick={() => removeItem(item.menu_id)}>Remove</button>
                   </div>
                 </div>
               </li>
@@ -232,33 +234,16 @@ const CartPage = () => {
 
             <div className="bill-row total">
               <strong>Total Payable</strong>
-              <strong>₹{finalAmount.toFixed(2)}</strong>
+              <strong>₹{total.toFixed(2)}</strong>
             </div>
           </section>
 
-          {/* Cart footer */}
+          {/* Cart Footer */}
           <div className="cart-footer">
             <div className="cart-buttons">
-              <button
-                className="clear-cart-btn"
-                onClick={handleClearCart}
-                disabled={placingOrder}
-              >
-                🗑 Clear
-              </button>
-
-              <button
-                className="place-order-btn"
-                onClick={placeOrder}
-                disabled={placingOrder}
-              >
-                {placingOrder ? (
-                  <>
-                    <span className="spinner"></span> Placing...
-                  </>
-                ) : (
-                  <>🛒 Place Order</>
-                )}
+              <button className="clear-cart-btn" onClick={handleClearCart} disabled={placingOrder}>🗑 Clear</button>
+              <button className="place-order-btn" onClick={placeOrder} disabled={placingOrder}>
+                {placingOrder ? <><span className="spinner"></span> Placing...</> : <>🛒 Place Order</>}
               </button>
             </div>
           </div>

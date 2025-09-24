@@ -24,8 +24,11 @@ export const AuthProvider = ({ children }) => {
 
   // set auto logout timer
   const scheduleLogout = (exp) => {
+    if (logoutTimer) clearTimeout(logoutTimer); // clear existing timer
+
     const now = Date.now();
     const timeout = exp * 1000 - now; // exp is in seconds
+
     if (timeout > 0) {
       const timer = setTimeout(() => logout(true), timeout);
       setLogoutTimer(timer);
@@ -44,13 +47,13 @@ export const AuthProvider = ({ children }) => {
         const now = Date.now() / 1000; // seconds
 
         if (decoded.exp && decoded.exp < now) {
-          // ✅ Clear storage immediately so next refresh won't retrigger
+          // Clear storage immediately so next refresh won't retrigger
           localStorage.removeItem('access_token');
           localStorage.removeItem('user');
           setToken(null);
           setUser(null);
 
-          // ✅ Show toast once
+          // Show toast once
           toast.error('Your session has expired. Please login again.');
         } else {
           setToken(storedToken);
@@ -67,8 +70,12 @@ export const AuthProvider = ({ children }) => {
     }
 
     setLoading(false);
-  }, []);
 
+    // Cleanup timer on unmount
+    return () => {
+      if (logoutTimer) clearTimeout(logoutTimer);
+    };
+  }, []);
 
   const login = (userData, token) => {
     localStorage.setItem('access_token', token);
